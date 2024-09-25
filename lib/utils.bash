@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for powerpipe.
 GH_REPO="https://github.com/turbot/powerpipe"
 TOOL_NAME="powerpipe"
 TOOL_TEST="powerpipe --help"
@@ -14,7 +13,6 @@ fail() {
 
 curl_opts=(-fsSL)
 
-# NOTE: You might want to remove this if powerpipe is not hosted on GitHub releases.
 if [ -n "${GITHUB_API_TOKEN:-}" ]; then
 	curl_opts=("${curl_opts[@]}" -H "Authorization: token $GITHUB_API_TOKEN")
 fi
@@ -27,12 +25,10 @@ sort_versions() {
 list_github_tags() {
 	git ls-remote --tags --refs "$GH_REPO" |
 		grep -o 'refs/tags/.*' | cut -d/ -f3- |
-		sed 's/^v//' # NOTE: You might want to adapt this sed to remove non-version strings from tags
+		sed 's/^v//'
 }
 
 list_all_versions() {
-	# TODO: Adapt this. By default we simply list the tag names from GitHub releases.
-	# Change this function if powerpipe has other means of determining installable versions.
 	list_github_tags
 }
 
@@ -41,9 +37,17 @@ download_release() {
 	version="$1"
 	filename="$2"
 
-	# TODO: Adapt the release URL convention for powerpipe
-	url="$GH_REPO/archive/v${version}.tar.gz"
+	local platform
+	platform=$(uname | tr '[:upper:]' '[:lower:]')
 
+	local arch
+	case "$(uname -m)" in
+	x86_64) arch="amd64" ;;
+	aarch64) arch="arm64" ;;
+	*) arch="$(uname -m)" ;;
+	esac
+
+	url="$GH_REPO/releases/download/v${version}/${TOOL_NAME}.${platform}.${arch}.tar.gz"
 	echo "* Downloading $TOOL_NAME release $version..."
 	curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
 }
@@ -61,7 +65,6 @@ install_version() {
 		mkdir -p "$install_path"
 		cp -r "$ASDF_DOWNLOAD_PATH"/* "$install_path"
 
-		# TODO: Assert powerpipe executable exists.
 		local tool_cmd
 		tool_cmd="$(echo "$TOOL_TEST" | cut -d' ' -f1)"
 		test -x "$install_path/$tool_cmd" || fail "Expected $install_path/$tool_cmd to be executable."
